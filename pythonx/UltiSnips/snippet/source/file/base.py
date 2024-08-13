@@ -27,9 +27,11 @@ class SnippetFileSource(SnippetSource):
         SnippetSource.__init__(self)
 
     def ensure(self, filetypes):
-        for ft in self.get_deep_extends(filetypes):
-            if self._needs_update(ft):
-                self._load_snippets_for(ft)
+        if self.must_ensure:
+            for ft in self.get_deep_extends(filetypes):
+                if self._needs_update(ft):
+                    self._load_snippets_for(ft)
+            self.must_ensure = False
 
     def refresh(self):
         self.__init__()
@@ -82,3 +84,6 @@ class SnippetFileSource(SnippetSource):
                 self._snippets[ft].add_snippet(snippet)
             else:
                 assert False, "Unhandled %s: %r" % (event, data)
+        # precompile global snippets code for all snipepts we just sourced
+        for snippet in self._snippets[ft]:
+            snippet._precompile_globals()

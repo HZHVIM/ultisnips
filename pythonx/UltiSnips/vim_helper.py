@@ -120,6 +120,9 @@ def command(cmd):
 
 def eval(text):
     """Wraps vim.eval."""
+    # Replace null bytes with newlines, as vim raises a ValueError and neovim
+    # treats it as a terminator for the entire command.
+    text = text.replace("\x00", "\n")
     return vim.eval(text)
 
 
@@ -214,7 +217,7 @@ def select(start, end):
 
 
 def get_dot_vim():
-    """Returns the likely place for ~/.vim for the current setup."""
+    """Returns the likely places for ~/.vim for the current setup."""
     home = vim.eval("$HOME")
     candidates = []
     if platform.system() == "Windows":
@@ -225,12 +228,19 @@ def get_dot_vim():
 
     candidates.append(os.path.join(home, ".vim"))
 
+    # Note: this potentially adds a duplicate on nvim
+    # I assume nvim sets the MYVIMRC env variable (to beconfirmed)
     if "MYVIMRC" in os.environ:
         my_vimrc = os.path.expandvars(os.environ["MYVIMRC"])
         candidates.append(normalize_file_path(os.path.dirname(my_vimrc)))
+
+    candidates_normalized = []
     for candidate in candidates:
         if os.path.isdir(candidate):
-            return normalize_file_path(candidate)
+            candidates_normalized.append(normalize_file_path(candidate))
+    if candidates_normalized:
+        # We remove duplicates on return
+        return sorted(set(candidates_normalized))
     raise PebkacError(
         "Unable to find user configuration directory. I tried '%s'." % candidates
     )
